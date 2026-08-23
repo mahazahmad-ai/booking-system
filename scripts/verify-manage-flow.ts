@@ -104,10 +104,27 @@ async function main() {
     where: { bookingId: fetched!.id, dedupeKey: 'CONFIRMATION' },
   })
   check(Boolean(confirmLog), 'confirmation logged', confirmLog?.status ?? '—')
+
+  // NFR-9 is not "the email succeeded" — it is "whatever happened to the email, the
+  // booking stands". SENT, SKIPPED (no provider) and FAILED (provider refused) are all
+  // acceptable; FAILED is in fact the case the requirement exists for. An earlier version
+  // accepted only SENT and SKIPPED and started failing the moment a real provider key was
+  // added and rejected a test address — reporting a defect where the system had behaved
+  // exactly as designed.
   check(
-    confirmLog?.status === 'SKIPPED' || confirmLog?.status === 'SENT',
-    'email outcome recorded, booking unaffected (NFR-9)',
-    'no provider key set',
+    ['SENT', 'SKIPPED', 'FAILED', 'PENDING'].includes(confirmLog?.status ?? ''),
+    'email outcome is recorded, whatever it was',
+    confirmLog?.status ?? '—',
+  )
+
+  const survived = await db.booking.findUnique({
+    where: { id: fetched!.id },
+    select: { status: true },
+  })
+  check(
+    survived?.status === 'CONFIRMED',
+    'booking stands regardless of the email outcome (NFR-9)',
+    `booking is ${survived?.status}, notification ${confirmLog?.status}`,
   )
 
   // ── reschedule ────────────────────────────────────────────────────────────
