@@ -1,0 +1,21 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "path": "/api/cron/reminders",
+      "comment": "03:00 UTC = 08:00 Asia/Karachi — the morning digest for tomorrow's appointments. Vercel Hobby allows one run per day and may fire anywhere inside the hour, which is why this is a morning digest rather than an exact 24-hour ping. See docs/GAP-ANALYSIS.md [A4].",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/close-out",
+      "comment": "22:00 UTC = 03:00 Asia/Karachi — after the business day has certainly ended. On Pro, tighten both of these to hourly.",
+      "schedule": "0 22 * * *"
+    }
+  ],
+  "functions": {
+    "app/**/*": {
+      "maxDuration": 30
+    }
+  },
+  "regions": ["sin1"]
+}

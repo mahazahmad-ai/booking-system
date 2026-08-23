@@ -1,0 +1,171 @@
+@import 'tailwindcss';
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Design tokens
+   ───────────────────────────────────────────────────────────────────────────
+   Semantic names, never literal ones. Nothing in the app says "green" or
+   "stone-100" — it says `bg-canvas`, `text-ink-muted`, `border-line`.
+
+   That is what makes the engine resellable: a new client is a new accent ramp
+   in this one block plus new seed data. No component changes. See §1 of the
+   spec — "new client, new seed data and theme, same engine".
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@layer base {
+  :root {
+    /* Warm neutrals — a touch of yellow in the greys reads human rather than
+       corporate, which suits salons, clinics and therapists better than a cold
+       blue-grey would. */
+    --canvas: #faf9f7;
+    --surface: #ffffff;
+    --surface-2: #f3f1ed;
+    --surface-inset: #edeae4;
+
+    --ink: #1a1815;
+    --ink-muted: #5c5750;
+    --ink-subtle: #8b857c;
+
+    --line: #e5e1da;
+    --line-strong: #d2ccc2;
+
+    /* Deep pine. Calm and premium; distinct from the default SaaS blue. */
+    --accent: #1f4d3d;
+    --accent-hover: #163a2e;
+    --accent-ink: #faf9f7;
+    --accent-soft: #e8efea;
+    --accent-line: #c3d6cc;
+
+    --danger: #9a3412;
+    --danger-soft: #fdf0ea;
+    --success: #1f4d3d;
+    --warning: #92610b;
+    --warning-soft: #fdf6e7;
+
+    --focus: #1f4d3d;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --canvas: #12110f;
+      --surface: #1a1917;
+      --surface-2: #232120;
+      --surface-inset: #2b2827;
+
+      --ink: #f5f3ef;
+      --ink-muted: #a8a29a;
+      --ink-subtle: #7a746b;
+
+      --line: #2e2b28;
+      --line-strong: #403c37;
+
+      /* Lifted for contrast against a dark canvas — the light-mode pine would
+         fail WCAG AA here. */
+      --accent: #5fa98a;
+      --accent-hover: #74bb9c;
+      --accent-ink: #0f1f19;
+      --accent-soft: #1c2a24;
+      --accent-line: #2f4b3f;
+
+      --danger: #f0916a;
+      --danger-soft: #2a1a13;
+      --success: #5fa98a;
+      --warning: #e0b464;
+      --warning-soft: #2a2113;
+
+      --focus: #5fa98a;
+    }
+  }
+}
+
+/* `inline` so utilities compile to var() references and follow the theme at
+   runtime, instead of baking in whichever value was resolved at build time. */
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-inset: var(--surface-inset);
+
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-subtle: var(--ink-subtle);
+
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-line: var(--accent-line);
+
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display), ui-serif, Georgia, serif;
+
+  /* A restrained scale. Booking UI lives mostly at the small end; the display
+     sizes exist for the marketing pages only. */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+
+  --radius-card: 0.875rem;
+  --radius-slot: 0.625rem;
+
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--canvas);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* NFR-4 — focus must always be visible, and must never be removed without a
+     replacement. Applied globally so no component can forget it. */
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  ::selection {
+    background-color: var(--accent-soft);
+    color: var(--ink);
+  }
+
+  /* Respect the OS setting. Slot grids animate on filter changes; someone with
+     vestibular sensitivity should not have to endure that. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* Subtle grain over the hero. Pure CSS — no image request, no layout shift. */
+  .texture-grain {
+    background-image: radial-gradient(
+      circle at 1px 1px,
+      color-mix(in oklab, var(--ink) 7%, transparent) 1px,
+      transparent 0
+    );
+    background-size: 22px 22px;
+  }
+}

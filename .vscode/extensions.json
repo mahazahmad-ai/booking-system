@@ -1,0 +1,10 @@
+{
+  "recommendations": [
+    // Autocomplete and hover previews for Tailwind classes, including the semantic
+    // tokens defined in app/globals.css. Also resolves the @theme at-rules natively.
+    "bradlc.vscode-tailwindcss",
+    // Syntax highlighting and formatting for prisma/schema.prisma.
+    "prisma.prisma",
+    "dbaeumer.vscode-eslint"
+  ]
+}

@@ -1,0 +1,369 @@
+// Booking System — schema v1.1
+// Corrections applied from docs/GAP-ANALYSIS.md. Findings are cited as [A1], [B4] etc.
+//
+// Prisma 7 notes:
+//   - `prisma-client` generator with an explicit `output` is required (the client is NOT
+//     generated into node_modules/@prisma/client any more).
+//   - `url` / `directUrl` are deprecated here; they live in prisma.config.ts.
+//   - Driver adapters are mandatory — see lib/db.ts (@prisma/adapter-pg).
+//
+// NEVER run `prisma db push` on this project. The exclusion constraint, the time-off trigger
+// and every CHECK constraint exist only in hand-written migration SQL, and db push will drop
+// them without warning. [C10]
+
+generator client {
+  provider = "prisma-client"
+  output   = "./generated"
+
+  // relationJoins lets `include` / nested `select` compile to a LATERAL JOIN instead of a
+  // second round trip. Without it, loading Staff with their rules is two sequential
+  // queries, and the availability path costs four sequential round trips rather than two.
+  previewFeatures = ["relationJoins"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Business — singleton in v1, capped by a partial unique index in the migration [C5]
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Business {
+  id       String @id @default(cuid())
+  name     String
+  timezone String // IANA, e.g. "Asia/Karachi". Never an offset.
+
+  currency         String @default("PKR")
+  currencyDecimals Int    @default(0) // PKR/JPY/KRW = 0, USD/EUR = 2 [C1]
+
+  slotIntervalMins  Int @default(15)  // grid step, anchored to local midnight [B1]
+  minLeadTimeMins   Int @default(120)
+  bookingWindowDays Int @default(60)
+  cancelWindowHours Int @default(24)
+
+  isSingleton Boolean @default(true) // target of the partial unique index [C5]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  services  Service[]
+  staff     Staff[]
+  bookings  Booking[]
+  customers Customer[] // [C4]
+  timeOff   TimeOff[] // [C3]
+  auditLogs AuditLog[] // [B5]
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Catalogue
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Service {
+  id          String  @id @default(cuid())
+  businessId  String
+  name        String
+  slug        String
+  description String?
+
+  durationMins     Int
+  bufferBeforeMins Int @default(0) // blocked BEFORE the appointment, not part of it [A1]
+  bufferAfterMins  Int @default(0) // blocked AFTER the appointment, not part of it  [A1]
+
+  priceMinor Int // minor units of Business.currency [C1]
+
+  requiresApproval Boolean @default(false) // makes BookingStatus.PENDING reachable [B4]
+  isActive         Boolean @default(true)
+  sortOrder        Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  business Business       @relation(fields: [businessId], references: [id])
+  staff    ServiceStaff[]
+  bookings Booking[]
+
+  @@unique([businessId, slug])
+  @@index([businessId, isActive, sortOrder])
+}
+
+model Staff {
+  id         String  @id @default(cuid())
+  businessId String
+  name       String
+  slug       String
+  bio        String?
+  avatarUrl  String?
+  isActive   Boolean @default(true)
+  sortOrder  Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  business Business           @relation(fields: [businessId], references: [id])
+  services ServiceStaff[]
+  rules    AvailabilityRule[]
+  timeOff  TimeOff[]
+  bookings Booking[]
+  user     User?
+
+  @@unique([businessId, slug])
+}
+
+model ServiceStaff {
+  serviceId String
+  staffId   String
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  staff   Staff   @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@id([serviceId, staffId])
+  @@index([staffId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Working time
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Wall-clock times, NOT instants — "Monday 09:00–17:00" must stay 09:00 across a DST change.
+// Constrained in SQL to 0 <= startMin < endMin <= 1440. An overnight shift is split across
+// two dayOfWeek rows (Mon 1320–1440 + Tue 0–60); interval merging reassembles it. [B3]
+model AvailabilityRule {
+  id        String @id @default(cuid())
+  staffId   String
+  dayOfWeek Int // 0 = Sunday … 6 = Saturday
+  startMin  Int // minutes from local midnight: 09:00 -> 540
+  endMin    Int // 17:00 -> 1020
+
+  staff Staff @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([staffId, dayOfWeek])
+}
+
+// True UTC instants — these name specific moments.
+// staffId null = whole business closed. businessId is required so a business-wide
+// closure is scoped to something. [C3]
+model TimeOff {
+  id         String   @id @default(cuid())
+  businessId String
+  staffId    String?
+  startsAt   DateTime @db.Timestamptz
+  endsAt     DateTime @db.Timestamptz
+  reason     String?
+
+  createdAt DateTime @default(now())
+
+  business Business @relation(fields: [businessId], references: [id])
+  staff    Staff?   @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([staffId, startsAt, endsAt])
+  @@index([businessId, startsAt, endsAt])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// People
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Customer {
+  id         String  @id @default(cuid())
+  businessId String
+  name       String
+  email      String // as typed, for display and for addressing mail
+  emailNorm  String // lowercased + trimmed — the identity key [C2]
+  phone      String?
+  notes      String? // internal, admin-only
+
+  createdAt DateTime @default(now()) // [C7]
+  updatedAt DateTime @updatedAt
+
+  business Business  @relation(fields: [businessId], references: [id])
+  bookings Booking[]
+
+  @@unique([businessId, emailNorm])
+  @@index([businessId, name])
+}
+
+enum Role {
+  ADMIN
+  STAFF
+}
+
+// Auth.js v5 with the Credentials provider is JWT-session only, so there is deliberately
+// no adapter and no Account / Session / VerificationToken models. [B12]
+// passwordHash is argon2id via @node-rs/argon2, hashed in the Node runtime only. [B11]
+model User {
+  id           String  @id @default(cuid())
+  email        String  @unique
+  passwordHash String
+  role         Role    @default(STAFF)
+  isActive     Boolean @default(true)
+  staffId      String? @unique
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  lastLoginAt DateTime?
+
+  staff     Staff?     @relation(fields: [staffId], references: [id])
+  auditLogs AuditLog[]
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Booking — the centre of the model
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+// TWO time windows, deliberately. [A1]
+//
+//   startsAt / endsAt            the customer's appointment. What emails, the .ics and the
+//                                manage page show. endsAt = startsAt + durationMins.
+//   blockStartsAt / blockEndsAt  the occupied window, buffers included. What the exclusion
+//                                constraint and every availability query use.
+//                                blockStartsAt = startsAt - bufferBeforeMins
+//                                blockEndsAt   = endsAt   + bufferAfterMins
+//
+// Stored rather than computed because index expressions must be IMMUTABLE and
+// `timestamptz - interval` is only STABLE. CHECK constraints keep the four in agreement.
+model Booking {
+  id         String @id @default(cuid())
+  businessId String
+  serviceId  String
+  staffId    String
+  customerId String
+
+  reference String @unique // "BK-7Q4M2X" — stable for the life of the booking, including
+  //                          across reschedules, which update in place [A2]
+
+  manageTokenHash String @unique // SHA-256 of the token — what lookups match on. [B8]
+
+  // AES-256-GCM of the same token, keyed from AUTH_SECRET (which lives in the environment,
+  // not the database). Storing ONLY the hash makes the raw token unrecoverable, which
+  // breaks every follow-up email that needs to rebuild the customer's manage link.
+  // See lib/token-crypto.ts.
+  manageTokenCipher String?
+
+  manageTokenExpiresAt DateTime? @db.Timestamptz
+
+  startsAt      DateTime @db.Timestamptz
+  endsAt        DateTime @db.Timestamptz
+  blockStartsAt DateTime @db.Timestamptz
+  blockEndsAt   DateTime @db.Timestamptz
+
+  // Copied at booking time so later service edits never rewrite history.
+  durationMins     Int
+  bufferBeforeMins Int @default(0)
+  bufferAfterMins  Int @default(0)
+  priceMinor       Int
+  currency         String
+
+  status       BookingStatus @default(CONFIRMED)
+  customerNote String?
+  internalNote String?
+
+  icsSequence    Int @default(0) // incremented on every change; emitted as SEQUENCE [B13]
+  rescheduleCount Int @default(0)
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt // [C7]
+  cancelledAt  DateTime?
+  cancelReason String?
+
+  business Business          @relation(fields: [businessId], references: [id])
+  service  Service           @relation(fields: [serviceId], references: [id])
+  staff    Staff             @relation(fields: [staffId], references: [id])
+  customer Customer          @relation(fields: [customerId], references: [id])
+  logs     NotificationLog[]
+  history  BookingHistory[]
+
+  // Availability queries are overlap queries on the BLOCK range, never containment. [B3]
+  @@index([staffId, blockStartsAt, blockEndsAt])
+  @@index([businessId, startsAt])
+  @@index([customerId, startsAt])
+}
+
+// Reschedule updates the Booking row in place; the previous values land here, so history
+// stays honest without duplicating the reference. [A2]
+model BookingHistory {
+  id        String @id @default(cuid())
+  bookingId String
+
+  changeType String // RESCHEDULED | STATUS_CHANGED | STAFF_REASSIGNED
+
+  fromStartsAt DateTime? @db.Timestamptz
+  fromEndsAt   DateTime? @db.Timestamptz
+  fromStaffId  String?
+  fromStatus   BookingStatus?
+
+  toStartsAt DateTime?      @db.Timestamptz
+  toEndsAt   DateTime?      @db.Timestamptz
+  toStaffId  String?
+  toStatus   BookingStatus?
+
+  actor  String // CUSTOMER | ADMIN | SYSTEM
+  reason String?
+
+  createdAt DateTime @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId, createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Notifications & audit
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Row is written inside the booking transaction as PENDING, then the send happens outside it.
+// A unique violation on dedupeKey means "already handled, skip" — which is what makes the
+// reminder cron safely re-runnable and gives NFR-9's retry queue somewhere to live. [B6]
+model NotificationLog {
+  id        String @id @default(cuid())
+  bookingId String
+
+  type      String // CONFIRMATION | APPROVAL_REQUEST | REMINDER | CANCELLATION | RESCHEDULE | STAFF_ALERT
+  channel   String @default("EMAIL")
+  dedupeKey String // CONFIRMATION | REMINDER_24H | CANCELLATION | RESCHEDULE_2 …
+
+  status        String    @default("PENDING") // PENDING | SENT | FAILED
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime? @db.Timestamptz
+  error         String?
+  providerId    String? // Resend message id, for support questions
+
+  createdAt DateTime  @default(now())
+  sentAt    DateTime?
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@unique([bookingId, dedupeKey])
+  @@index([status, nextAttemptAt])
+}
+
+// FR-S4. Deliberately a text summary rather than a full before/after diff — JSON diffs rot,
+// and a diff viewer is a v2 feature. [B5]
+model AuditLog {
+  id          String  @id @default(cuid())
+  businessId  String
+  actorUserId String?
+  actorEmail  String // denormalised so the log survives user deletion
+
+  action     String // service.update | booking.cancel | hours.set | settings.update …
+  entityType String
+  entityId   String
+  summary    String
+
+  ip        String?
+  createdAt DateTime @default(now())
+
+  business Business @relation(fields: [businessId], references: [id])
+  actor    User?    @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId, createdAt])
+  @@index([businessId, createdAt])
+}

@@ -1,0 +1,75 @@
+{
+  "version": 1.1,
+  "atDirectives": [
+    {
+      "name": "@theme",
+      "description": "Tailwind 4 — defines design tokens as CSS variables that become utility classes. `@theme inline` emits utilities that reference the variable at runtime instead of baking in the value resolved at build time, which is what lets the palette follow light/dark.",
+      "references": [
+        { "name": "Tailwind docs", "url": "https://tailwindcss.com/docs/theme" }
+      ]
+    },
+    {
+      "name": "@utility",
+      "description": "Tailwind 4 — registers a custom utility class that works with variants like `hover:` and `md:`.",
+      "references": [
+        { "name": "Tailwind docs", "url": "https://tailwindcss.com/docs/adding-custom-styles" }
+      ]
+    },
+    {
+      "name": "@variant",
+      "description": "Tailwind 4 — applies a Tailwind variant (such as `dark` or `hover`) to the styles in the block.",
+      "references": [
+        { "name": "Tailwind docs", "url": "https://tailwindcss.com/docs/adding-custom-styles" }
+      ]
+    },
+    {
+      "name": "@custom-variant",
+      "description": "Tailwind 4 — defines a new variant that can then be used as a prefix on utilities.",
+      "references": [
+        { "name": "Tailwind docs", "url": "https://tailwindcss.com/docs/adding-custom-styles" }
+      ]
+    },
+    {
+      "name": "@apply",
+      "description": "Inlines existing utility classes into custom CSS.",
+      "references": [
+        { "name": "Tailwind docs", "url": "https://tailwindcss.com/docs/adding-custom-styles" }
+      ]
+    },
+    {
+      "name": "@source",
+      "description": "Tailwind 4 — explicitly registers a path for class detection, for files the automatic scan misses.",
+      "references": [
+        { "name": "Tailwind docs", "url": "https://tailwindcss.com/docs/detecting-classes-in-source-files" }
+      ]
+    },
+    {
+      "name": "@reference",
+      "description": "Tailwind 4 — imports a stylesheet for `@apply`/`@variant` resolution without emitting its CSS. Used in scoped styles.",
+      "references": [
+        { "name": "Tailwind docs", "url": "https://tailwindcss.com/docs/functions-and-directives" }
+      ]
+    },
+    {
+      "name": "@plugin",
+      "description": "Tailwind 4 — loads a JavaScript plugin.",
+      "references": [
+        { "name": "Tailwind docs", "url": "https://tailwindcss.com/docs/functions-and-directives" }
+      ]
+    },
+    {
+      "name": "@config",
+      "description": "Tailwind 4 — loads a legacy `tailwind.config.js` for compatibility.",
+      "references": [
+        { "name": "Tailwind docs", "url": "https://tailwindcss.com/docs/functions-and-directives" }
+      ]
+    },
+    {
+      "name": "@tailwind",
+      "description": "Tailwind 3 directive that injected a layer. Superseded in v4 by `@import \"tailwindcss\"` — listed here only so older snippets don't warn.",
+      "references": [
+        { "name": "Tailwind docs", "url": "https://tailwindcss.com/docs/functions-and-directives" }
+      ]
+    }
+  ]
+}

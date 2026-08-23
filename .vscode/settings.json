@@ -1,0 +1,37 @@
+{
+  // VS Code's built-in CSS language server predates Tailwind 4 and flags its at-rules
+  // as "Unknown at rule". The custom data file below teaches it the real directives,
+  // so `@theme` and friends stop warning WITHOUT silencing genuine CSS errors.
+  "css.customData": [".vscode/css_custom_data.json"],
+
+  // Belt and braces: `@import 'tailwindcss'` pulls in generated CSS the language server
+  // never sees, so a few nested at-rules can still trip it.
+  "css.lint.unknownAtRules": "ignore",
+  "scss.lint.unknownAtRules": "ignore",
+  "less.lint.unknownAtRules": "ignore",
+
+  // Tailwind 4 generates utilities from @theme tokens; the built-in validator can't
+  // resolve them and reports false positives on class names.
+  "editor.quickSuggestions": {
+    "strings": "on"
+  },
+
+  "[css]": {
+    "editor.suggest.insertMode": "replace"
+  },
+
+  // Prisma 7 emits the client into prisma/generated. It's gitignored and regenerated on
+  // every `prisma generate` — hiding it keeps search results and file watching sane.
+  "files.exclude": {
+    "**/.next": true,
+    "**/prisma/generated": true
+  },
+  "search.exclude": {
+    "**/.next": true,
+    "**/prisma/generated": true,
+    "**/package-lock.json": true
+  },
+
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "editor.formatOnSave": false
+}
