@@ -8,8 +8,8 @@
  */
 
 export const brand = {
-  name: 'Noor Wellness',
-  nameShort: 'Noor',
+  name: 'Glow & Grace',
+  nameShort: 'Glow',
   tagline: 'Considered treatments, unhurried appointments.',
   description:
     'A small wellness studio in Karachi. Facials, massage and skin therapy, booked in under a minute — no account, no phone tag.',
@@ -18,7 +18,14 @@ export const brand = {
   timezoneLabel: 'Pakistan Standard Time',
 
   phone: '+92 21 3456 7890',
-  email: 'hello@noorwellness.example',
+  email: 'hello@glowandgrace.example',
+
+  /**
+   * Used for email addresses and calendar-invite UIDs, where an ampersand and spaces are
+   * not valid. Changing this after bookings exist would orphan their calendar entries —
+   * a UID must stay stable for the life of a booking (see lib/ics.ts).
+   */
+  slug: 'glowandgrace',
   address: {
     line1: '2nd Floor, 14-C Khayaban-e-Bukhari',
     line2: 'Phase VI, DHA',

@@ -81,7 +81,7 @@ npm run db:deploy
 Already rotated off the seeded default. To set a new one at any time:
 
 ```powershell
-npm run set-password owner@noorwellness.example
+npm run set-password owner@glowandgrace.example
 ```
 
 With no password argument it generates one and prints it once — a password typed on a

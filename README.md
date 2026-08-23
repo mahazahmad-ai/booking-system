@@ -27,25 +27,28 @@ npm run db:bench             NFR-1 met            — 2 round trips, ~86 ms co-l
 
 Honest about what has *not* been proven:
 
-- **No email has ever been sent.** Without `RESEND_API_KEY` every send records `SKIPPED`.
-  The code path is verified; delivery is not.
 - **No accessibility audit.** Built to WCAG 2.1 AA intent — real buttons, visible focus,
   keyboard-operable slot grids, `prefers-reduced-motion` — but never tested with a screen
   reader.
 - **No end-to-end test.** There is no Playwright "can a person actually book?" run.
 - **Never deployed**, so cold starts and real Vercel↔Neon latency are unmeasured. The
   ~86 ms figure is a projection from measured round-trip counts, not an observation.
+- **Staff alert emails are undelivered** while Resend runs in test mode, which only
+  accepts the account owner's address. Verify a domain to reach real staff addresses.
+
+Email delivery *is* proven: a real confirmation and cancellation were sent through Resend
+with provider ids. `npm run send-test-email you@example.com` repeats it.
 
 † `db:verify` requires an **unseeded** database — [C5] caps `Business` at one row, so its
 fixture can't coexist with seed data. It refuses with a clear message rather than failing
 obscurely.
 
-**Admin:** `/login` · `owner@noorwellness.example`
+**Admin:** `/login` · `owner@glowandgrace.example`
 
 The password has been rotated out of the seeded default. To set a new one:
 
 ```powershell
-npm run set-password owner@noorwellness.example
+npm run set-password owner@glowandgrace.example
 ```
 
 With no password argument it generates a strong one and prints it once. Note that
@@ -55,17 +58,17 @@ bookings.
 
 ## Before deploying
 
-1. **Set `AUTH_SECRET`** to a real value (`npx auth secret`). Manage-token encryption is
-   keyed from it — rotating it makes existing tokens undecryptable, so links in already-sent
-   emails lose their manage button.
-2. **Set `CRON_SECRET`.** The cron routes fail closed without it (503, not 200).
-3. **Set `RESEND_API_KEY`** and start SPF/DKIM/DMARC DNS early — propagation takes hours.
-4. **Pin the Vercel function region to `sin1`** (already in `vercel.json`) so functions sit
+1. **Copy all eight environment variables into Vercel.** `AUTH_SECRET` keys the
+   manage-token encryption — rotating it makes existing tokens undecryptable, so links in
+   already-sent emails lose their manage button.
+2. **Pin the Vercel function region to `sin1`** (already in `vercel.json`) so functions sit
    beside the database. Leaving the `iad1` default turns a 4 ms round trip into 240 ms.
-5. **Change the seeded admin password.**
+3. **Set a strong admin password** — `npm run set-password owner@glowandgrace.example`.
+   A short one used in development must not survive to a public URL.
+4. **Verify a sending domain in Resend** so mail reaches addresses other than the account
+   owner's. SPF/DKIM/DMARC propagation takes hours; start it before you need it.
 
-> Email currently logs and records `SKIPPED` because `RESEND_API_KEY` is unset. That is the
-> NFR-9 path working as designed: a missing or failing provider never rolls back a booking.
+Full click-by-click instructions: [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
 ---
 

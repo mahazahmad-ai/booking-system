@@ -13,13 +13,14 @@ const base: IcsInput = {
   method: 'REQUEST',
   startsAt: new Date('2026-09-14T06:30:00Z'),
   endsAt: new Date('2026-09-14T07:30:00Z'),
-  summary: 'Signature Facial — Noor Wellness',
+  summary: 'Signature Facial — Glow & Grace',
   description: 'Reference BK-7Q4M2X. With Ayesha Mirza.',
   location: '14-C Khayaban-e-Bukhari, Phase VI, Karachi',
-  organiserName: 'Noor Wellness',
-  organiserEmail: 'hello@noorwellness.example',
+  organiserName: 'Glow & Grace',
+  organiserEmail: 'hello@glowandgrace.example',
   attendeeName: 'Fatima Sheikh',
   attendeeEmail: 'fatima@example.com',
+  uidDomain: 'glowandgrace',
   now: new Date('2026-08-24T10:00:00Z'),
 }
 
@@ -58,7 +59,7 @@ describe('buildIcs — the reschedule contract', () => {
       buildIcs({ ...base, sequence: 1, startsAt: new Date('2026-09-15T06:30:00Z') }),
     ).find((l) => l.startsWith('UID:'))
 
-    expect(first).toBe('UID:booking-ckl123abc@noorwellness')
+    expect(first).toBe('UID:booking-ckl123abc@glowandgrace')
     // Same UID means the calendar UPDATES the event rather than adding a second one.
     expect(moved).toBe(first)
   })
@@ -67,6 +68,16 @@ describe('buildIcs — the reschedule contract', () => {
     const a = lines(buildIcs(base)).find((l) => l.startsWith('UID:'))
     const b = lines(buildIcs({ ...base, bookingId: 'other' })).find((l) => l.startsWith('UID:'))
     expect(a).not.toBe(b)
+  })
+
+  it('takes the UID domain as input rather than hardcoding a business name', () => {
+    // The engine is resold: the same code runs for a salon, a clinic and a tutor. A
+    // hardcoded domain would mean renaming the business silently changed every UID,
+    // orphaning the calendar entry of every existing booking.
+    const other = lines(buildIcs({ ...base, uidDomain: 'someotherclinic' })).find((l) =>
+      l.startsWith('UID:'),
+    )
+    expect(other).toBe('UID:booking-ckl123abc@someotherclinic')
   })
 
   it('raises SEQUENCE on each change, or clients ignore the update', () => {
@@ -122,7 +133,7 @@ describe('buildIcs — escaping and folding', () => {
 describe('buildIcs — participants', () => {
   it('names the organiser and the attendee', () => {
     const ics = buildIcs(base)
-    expect(ics).toContain('ORGANIZER;CN=Noor Wellness:mailto:hello@noorwellness.example')
+    expect(ics).toContain('ORGANIZER;CN=Glow & Grace:mailto:hello@glowandgrace.example')
     expect(ics).toContain('ATTENDEE;CN=Fatima Sheikh;RSVP=FALSE:mailto:fatima@example.com')
   })
 

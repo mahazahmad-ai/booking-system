@@ -21,7 +21,7 @@ async function main() {
   console.log('\nVerifying admin auth and scoping\n')
 
   const owner = await db.user.findUnique({
-    where: { email: 'owner@noorwellness.example' },
+    where: { email: 'owner@glowandgrace.example' },
     select: { id: true, passwordHash: true, role: true, staffId: true, isActive: true },
   })
   check(Boolean(owner), 'seeded owner account exists')

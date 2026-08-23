@@ -29,6 +29,12 @@ export type IcsInput = {
   organiserEmail: string
   attendeeName: string
   attendeeEmail: string
+  /**
+   * Domain part of the UID. Passed in rather than hardcoded so renaming the business
+   * doesn't silently change every UID — which would orphan the calendar entries of every
+   * existing booking, because a UID must stay stable for the life of the appointment.
+   */
+  uidDomain: string
   /** Passed in rather than read from the clock, so output is deterministic and testable. */
   now: Date
 }
@@ -67,7 +73,7 @@ function fold(line: string): string {
 }
 
 export function buildIcs(input: IcsInput): string {
-  const uid = `booking-${input.bookingId}@noorwellness`
+  const uid = `booking-${input.bookingId}@${input.uidDomain}`
 
   const lines = [
     'BEGIN:VCALENDAR',

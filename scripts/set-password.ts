@@ -5,7 +5,7 @@ import { db } from '../lib/db.js'
 /**
  * Change an admin or staff password.
  *
- *   npx tsx --env-file=.env scripts/set-password.ts owner@noorwellness.example
+ *   npx tsx --env-file=.env scripts/set-password.ts owner@glowandgrace.example
  *   npx tsx --env-file=.env scripts/set-password.ts owner@example.com "my new password"
  *
  * With no password given, a strong one is generated and printed once. That is the safer
@@ -26,10 +26,17 @@ function generatePassword(length = 20): string {
 }
 
 async function main() {
-  const [email, provided] = process.argv.slice(2)
+  const args = process.argv.slice(2)
+  // --force accepts a password below the minimum length. It exists for local development
+  // convenience and is deliberately explicit, so a weak password is always a choice
+  // somebody made rather than something that slipped through.
+  const force = args.includes('--force')
+  const [email, provided] = args.filter((a) => a !== '--force')
 
   if (!email) {
-    console.error('\nUsage: npx tsx --env-file=.env scripts/set-password.ts <email> [password]\n')
+    console.error(
+      '\nUsage: npx tsx --env-file=.env scripts/set-password.ts <email> [password] [--force]\n',
+    )
     process.exit(1)
   }
 
@@ -48,8 +55,11 @@ async function main() {
     process.exit(1)
   }
 
-  if (provided && provided.length < 12) {
-    console.error('\nThat password is under 12 characters. Choose a longer one.\n')
+  if (provided && provided.length < 12 && !force) {
+    console.error(
+      '\nThat password is under 12 characters. Choose a longer one, or pass --force if\n' +
+        'this is a local development account that will never be publicly reachable.\n',
+    )
     await db.$disconnect()
     process.exit(1)
   }
@@ -62,6 +72,12 @@ async function main() {
   })
 
   console.log(`\nPassword updated for ${user.email} (${user.role}).`)
+  if (provided && provided.length < 12) {
+    console.log(
+      '\n  WARNING: this password is short and must not survive to production.\n' +
+        '  Rotate it before the site is publicly reachable.',
+    )
+  }
   if (!provided) {
     console.log(`\n  ${password}\n`)
     console.log('Shown once. Store it in a password manager now — it is not recoverable.\n')

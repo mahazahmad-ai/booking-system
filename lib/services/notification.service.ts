@@ -193,6 +193,7 @@ function icsFor(
       summary: `${booking.service.name} — ${booking.business.name}`,
       description: `Reference ${booking.reference}. With ${booking.staff.name}.`,
       location: `${brand.address.line1}, ${brand.address.line2}, ${brand.address.city}`,
+      uidDomain: brand.slug,
       organiserName: booking.business.name,
       organiserEmail: brand.email,
       attendeeName: booking.customer.name,
