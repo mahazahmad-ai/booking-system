@@ -17,6 +17,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
+    "set-password": "tsx --env-file=.env scripts/set-password.ts",
     "db:verify": "tsx --env-file=.env scripts/verify-constraints.ts",
     "db:verify-flow": "tsx --env-file=.env scripts/verify-booking-flow.ts",
     "db:verify-manage": "tsx --env-file=.env scripts/verify-manage-flow.ts",
