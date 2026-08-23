@@ -7,21 +7,34 @@ admin area.
 Built so the same engine resells: a new client is new seed data plus a new token block in
 `app/globals.css`. Nothing in the domain or the components changes.
 
-**Status: Phases 0–6 complete. Feature-complete against the v1 spec.** Live database on
-Neon (Singapore) with all constraints proven to fire, the availability engine unit-tested
-including DST, a booking wizard that handles the 409 race, self-service cancel/reschedule
-with email and calendar invites, a role-scoped admin area, and idempotent scheduled jobs.
-Not yet deployed to Vercel.
+**Status: every v1 requirement built.** All 22 functional requirements, including the three
+finished last: manual booking with lead-time override (FR-A8), staff CRUD (FR-A5), and the
+customer list and CSV export (FR-A11, FR-A12). **Not yet deployed to Vercel** — see
+[Before deploying](#before-deploying).
 
 ```
-npm test                 116 passed, 0 failed   — engine, .ics and token crypto, DST included
-npm run db:verify         22 passed, 0 failed   — every DB guarantee exercised †
-npm run db:verify-flow    12 passed, 0 failed   — booking write path, incl. the 409 race
-npm run db:verify-manage  21 passed, 0 failed   — cancel + reschedule, incl. in-place move
-npm run db:verify-admin   10 passed, 0 failed   — argon2id, roles, STAFF scoping
-npm run db:verify-cron    11 passed, 0 failed   — reminders, close-out, idempotence
-npm run db:bench          NFR-1 met             — 2 round trips, ~86 ms co-located p95
+npm test                    116 passed, 0 failed  — engine, .ics, token crypto, DST included
+npm run db:verify            22 passed, 0 failed  — every DB guarantee exercised †
+npm run db:verify-flow       12 passed, 0 failed  — booking write path, incl. the 409 race
+npm run db:verify-manage     21 passed, 0 failed  — cancel + reschedule, incl. in-place move
+npm run db:verify-admin      10 passed, 0 failed  — argon2id, roles, STAFF scoping
+npm run db:verify-cron       11 passed, 0 failed  — reminders, close-out, idempotence
+npm run db:verify-completion 16 passed, 0 failed  — override, export, CSV injection
+npm run db:bench             NFR-1 met            — 2 round trips, ~86 ms co-located p95
 ```
+
+### Known gaps
+
+Honest about what has *not* been proven:
+
+- **No email has ever been sent.** Without `RESEND_API_KEY` every send records `SKIPPED`.
+  The code path is verified; delivery is not.
+- **No accessibility audit.** Built to WCAG 2.1 AA intent — real buttons, visible focus,
+  keyboard-operable slot grids, `prefers-reduced-motion` — but never tested with a screen
+  reader.
+- **No end-to-end test.** There is no Playwright "can a person actually book?" run.
+- **Never deployed**, so cold starts and real Vercel↔Neon latency are unmeasured. The
+  ~86 ms figure is a projection from measured round-trip counts, not an observation.
 
 † `db:verify` requires an **unseeded** database — [C5] caps `Business` at one row, so its
 fixture can't coexist with seed data. It refuses with a clear message rather than failing

@@ -22,6 +22,7 @@
     "db:verify-manage": "tsx --env-file=.env scripts/verify-manage-flow.ts",
     "db:verify-admin": "tsx --env-file=.env scripts/verify-admin.ts",
     "db:verify-cron": "tsx --env-file=.env scripts/verify-cron.ts",
+    "db:verify-completion": "tsx --env-file=.env scripts/verify-completion.ts",
     "db:bench": "tsx --env-file=.env scripts/bench-availability.ts",
     "db:queries": "tsx --env-file=.env scripts/count-queries.ts"
   },

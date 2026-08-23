@@ -174,6 +174,74 @@ export async function listServicesForAdmin(businessId: string) {
   })
 }
 
+/** FR-A11 — customers with contact details and booking history. */
+export async function listCustomers(businessId: string, search?: string) {
+  const term = search?.trim()
+
+  return db.customer.findMany({
+    where: {
+      businessId,
+      ...(term
+        ? {
+            OR: [
+              { name: { contains: term, mode: 'insensitive' } },
+              { emailNorm: { contains: term.toLowerCase() } },
+              { phone: { contains: term } },
+            ],
+          }
+        : {}),
+    },
+    relationLoadStrategy: 'join',
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      notes: true,
+      createdAt: true,
+      _count: { select: { bookings: true } },
+      bookings: {
+        select: { startsAt: true, status: true, service: { select: { name: true } } },
+        orderBy: { startsAt: 'desc' },
+        take: 3,
+      },
+    },
+    orderBy: { name: 'asc' },
+    take: 200,
+  })
+}
+
+/** FR-A12 — every booking in a date range, for export. */
+export async function listBookingsForExport(args: {
+  businessId: string
+  window: Interval
+  staffScope: string | null
+}) {
+  return db.booking.findMany({
+    where: {
+      businessId: args.businessId,
+      ...scopeWhere(args.staffScope),
+      startsAt: { gte: args.window.start, lt: args.window.end },
+    },
+    relationLoadStrategy: 'join',
+    select: {
+      reference: true,
+      startsAt: true,
+      endsAt: true,
+      status: true,
+      durationMins: true,
+      priceMinor: true,
+      currency: true,
+      createdAt: true,
+      customerNote: true,
+      service: { select: { name: true } },
+      staff: { select: { name: true } },
+      customer: { select: { name: true, email: true, phone: true } },
+    },
+    orderBy: { startsAt: 'asc' },
+  })
+}
+
 export async function listTimeOff(businessId: string, staffScope: string | null, from: Date) {
   return db.timeOff.findMany({
     where: {

@@ -8,6 +8,8 @@ import { db } from '@/lib/db'
 import { requireAdmin, requireSession, scopeStaffId } from '@/lib/auth'
 import { canTransition, type BookingStatus } from '@/lib/domain/policy'
 import { audit } from '@/lib/services/audit.service'
+import { createBooking } from '@/lib/services/booking.service'
+import { BookingError } from '@/lib/errors'
 import { clientIp } from '@/lib/ratelimit'
 import { wallToUtc, parseIsoDate } from '@/lib/time'
 
@@ -422,6 +424,150 @@ export async function deleteTimeOffAction(
   updateTag('availability')
   revalidatePath('/admin/staff')
   return { ok: 'Time off removed.' }
+}
+
+// ── manual booking (FR-A8) ───────────────────────────────────────────────────
+
+const manualBookingSchema = z.object({
+  service: z.string().min(1).max(80),
+  staff: z.string().min(1).max(60),
+  startsAt: z.iso.datetime(),
+  name: z.string().trim().min(2).max(80),
+  email: z.string().trim().toLowerCase().max(160).pipe(z.email()),
+  phone: z.string().trim().min(3).max(30),
+  note: z.string().trim().max(500).optional(),
+  overrideLeadTime: z.coerce.boolean(),
+})
+
+/**
+ * Book on someone's behalf — the phone and walk-in path.
+ *
+ * Goes through the SAME createBooking as the public wizard, so the exclusion constraint,
+ * the time-off trigger and the booking window all still apply. The single thing an admin
+ * may bypass is the customer-facing minimum notice: someone standing at the counter can
+ * be booked into the next half-hour.
+ */
+export async function createManualBookingAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const parsed = manualBookingSchema.safeParse({
+    ...Object.fromEntries(formData),
+    overrideLeadTime: formData.get('overrideLeadTime') === 'on',
+  })
+  if (!parsed.success) {
+    const first = parsed.error.issues[0]
+    return { error: `${first.path.join('.')}: ${first.message}` }
+  }
+
+  const { session, business, ip } = await context()
+  const staffScope = await scopeStaffId()
+
+  // A therapist can only fill their own diary.
+  if (staffScope && parsed.data.staff !== staffScope) {
+    return { error: 'You can only add bookings to your own calendar.' }
+  }
+
+  const { overrideLeadTime, ...input } = parsed.data
+
+  try {
+    const booking = await createBooking(input, { leadTimeOverride: overrideLeadTime })
+
+    await audit({
+      businessId: business.id,
+      actorUserId: session.user.id,
+      actorEmail: session.user.email ?? '',
+      action: 'booking.create.manual',
+      entityType: 'Booking',
+      entityId: booking.reference,
+      summary: `Manual booking ${booking.reference} for ${input.name}${overrideLeadTime ? ' (lead time overridden)' : ''}`,
+      ip,
+    })
+
+    updateTag('availability')
+    revalidatePath('/admin')
+    revalidatePath('/admin/bookings')
+
+    return { ok: `Booked — ${booking.reference} with ${booking.staffName}.` }
+  } catch (e) {
+    if (e instanceof BookingError) return { error: e.message }
+    console.error('manual booking failed', e)
+    return { error: 'Could not create that booking.' }
+  }
+}
+
+// ── staff (FR-A5) ────────────────────────────────────────────────────────────
+
+const staffSchema = z.object({
+  id: z.string().max(60).optional(),
+  name: z.string().trim().min(2).max(80),
+  slug: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(1)
+    .max(80)
+    .regex(/^[a-z0-9-]+$/, 'Lowercase letters, numbers and hyphens only'),
+  bio: z.string().trim().max(600).optional(),
+  isActive: z.coerce.boolean(),
+  sortOrder: z.coerce.number().int().min(0).max(999),
+  serviceIds: z.string().optional(),
+})
+
+/**
+ * Add or edit a therapist, and set which treatments they perform.
+ *
+ * There is no delete. A therapist with bookings cannot be removed without destroying
+ * history — deactivating hides them from the booking flow while leaving every past
+ * appointment intact, which is what a business actually wants when someone leaves.
+ */
+export async function upsertStaffAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const parsed = staffSchema.safeParse({
+    ...Object.fromEntries(formData),
+    isActive: formData.get('isActive') === 'on',
+    serviceIds: formData.getAll('serviceIds').join(','),
+  })
+  if (!parsed.success) {
+    const first = parsed.error.issues[0]
+    return { error: `${first.path.join('.')}: ${first.message}` }
+  }
+
+  const { session, business, ip } = await context()
+  await requireAdmin()
+
+  const { id, serviceIds, bio, ...fields } = parsed.data
+  const assigned = (serviceIds ?? '').split(',').filter(Boolean)
+
+  const staff = id
+    ? await db.staff.update({ where: { id }, data: { ...fields, bio: bio || null } })
+    : await db.staff.create({
+        data: { ...fields, bio: bio || null, businessId: business.id },
+      })
+
+  await db.serviceStaff.deleteMany({ where: { staffId: staff.id } })
+  if (assigned.length) {
+    await db.serviceStaff.createMany({
+      data: assigned.map((serviceId) => ({ serviceId, staffId: staff.id })),
+    })
+  }
+
+  await audit({
+    businessId: business.id,
+    actorUserId: session.user.id,
+    actorEmail: session.user.email ?? '',
+    action: id ? 'staff.update' : 'staff.create',
+    entityType: 'Staff',
+    entityId: staff.id,
+    summary: `${staff.name} — ${assigned.length} treatment(s)${fields.isActive ? '' : ', inactive'}`,
+    ip,
+  })
+
+  updateTag('availability')
+  revalidatePath('/admin/staff')
+  return { ok: `Saved ${staff.name}.` }
 }
 
 export type { BookingStatus }

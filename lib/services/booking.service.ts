@@ -128,6 +128,10 @@ export async function createBooking(
   const availability = await getDayAvailability(input.service, date, {
     staffId: input.staff === 'any' ? undefined : input.staff,
     now,
+    // Without this, an admin override would pass the policy check above and then be
+    // rejected here as "slot taken" — because the slot was never offered in the first
+    // place. The two lead-time decisions have to agree.
+    ignoreLeadTime: options.leadTimeOverride,
   })
 
   const slot = availability.slots.find((s) => s.startsAt.getTime() === startsAt.getTime())

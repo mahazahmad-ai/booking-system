@@ -1,6 +1,16 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { CalendarDays, Clock, LayoutDashboard, LogOut, Scissors, Settings, Users } from 'lucide-react'
+import {
+  CalendarDays,
+  CalendarPlus,
+  Clock,
+  Contact,
+  LayoutDashboard,
+  LogOut,
+  Scissors,
+  Settings,
+  Users,
+} from 'lucide-react'
 import { auth, signOut } from '@/lib/auth'
 import { brand } from '@/lib/brand'
 
@@ -25,6 +35,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: '/admin', label: 'Today', icon: LayoutDashboard, adminOnly: false },
     { href: '/admin/calendar', label: 'Calendar', icon: CalendarDays, adminOnly: false },
     { href: '/admin/bookings', label: 'Bookings', icon: Clock, adminOnly: false },
+    { href: '/admin/bookings/new', label: 'New booking', icon: CalendarPlus, adminOnly: false },
+    { href: '/admin/customers', label: 'Customers', icon: Contact, adminOnly: true },
     { href: '/admin/services', label: 'Treatments', icon: Scissors, adminOnly: true },
     { href: '/admin/staff', label: 'Staff & hours', icon: Users, adminOnly: true },
     { href: '/admin/settings', label: 'Settings', icon: Settings, adminOnly: true },

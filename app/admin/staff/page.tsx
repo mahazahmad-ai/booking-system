@@ -1,6 +1,7 @@
 import { requireSession, scopeStaffId } from '@/lib/auth'
 import { getBusiness } from '@/lib/repositories/catalogue.repo'
-import { listStaffForAdmin, listTimeOff } from '@/lib/repositories/admin.repo'
+import { listStaffForAdmin, listServicesForAdmin, listTimeOff } from '@/lib/repositories/admin.repo'
+import { StaffEditor } from './staff-editor'
 import { localTimeInZone, isoDateInZone } from '@/lib/time'
 import { Card, PageHeading } from '@/components/admin/ui'
 import { HoursEditor, TimeOffForm, DeleteTimeOffButton } from './forms'
@@ -20,9 +21,10 @@ export default async function StaffPage() {
   const business = await getBusiness()
   const isAdmin = session.user.role === 'ADMIN'
 
-  const [staff, timeOff] = await Promise.all([
+  const [staff, timeOff, services] = await Promise.all([
     listStaffForAdmin(business.id, staffScope),
     listTimeOff(business.id, staffScope, new Date()),
+    isAdmin ? listServicesForAdmin(business.id) : Promise.resolve([]),
   ])
 
   const tz = business.timezone
@@ -67,6 +69,24 @@ export default async function StaffPage() {
             )}
 
             {isAdmin && (
+              <div className="mb-5">
+                <StaffEditor
+                  staff={{
+                    id: person.id,
+                    name: person.name,
+                    slug: person.slug,
+                    bio: person.bio,
+                    isActive: person.isActive,
+                    sortOrder: person.sortOrder,
+                    assignedServiceIds: person.services.map((s) => s.serviceId),
+                    bookingCount: person._count.bookings,
+                  }}
+                  allServices={services.map((s) => ({ id: s.id, name: s.name }))}
+                />
+              </div>
+            )}
+
+            {isAdmin && (
               <HoursEditor
                 staffId={person.id}
                 initial={person.rules.map((r) => `${r.dayOfWeek}:${r.startMin}-${r.endMin}`).join(',')}
@@ -75,6 +95,18 @@ export default async function StaffPage() {
           </Card>
         ))}
       </div>
+
+      {isAdmin && (
+        <Card className="mt-6 p-6">
+          <h2 className="font-display text-xl text-ink">Add a therapist</h2>
+          <p className="mt-1 text-sm text-ink-muted">
+            They&rsquo;ll need weekly hours before they appear in the booking flow.
+          </p>
+          <div className="mt-4">
+            <StaffEditor allServices={services.map((s) => ({ id: s.id, name: s.name }))} />
+          </div>
+        </Card>
+      )}
 
       <Card className="mt-8 p-6">
         <h2 className="font-display text-xl text-ink">Time off</h2>

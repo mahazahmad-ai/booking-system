@@ -118,12 +118,16 @@ function slotInputFor(
 export async function getDayAvailability(
   serviceSlug: string,
   isoDate: string,
-  options: { staffId?: string; now?: Date } = {},
+  options: { staffId?: string; now?: Date; ignoreLeadTime?: boolean } = {},
 ): Promise<DayAvailability> {
   const now = options.now ?? new Date()
   const { business, service } = await getBusinessWithService(serviceSlug)
 
   const bounds = bookingBounds(now, business)
+  // FR-A8 — an admin taking a phone booking can fill a slot inside the customer-facing
+  // notice period. It relaxes the lead time ONLY; the booking window, the exclusion
+  // constraint and the time-off trigger all still apply.
+  if (options.ignoreLeadTime) bounds.start = now
   // Widen the load window by a day either side so a booking that started yesterday and
   // runs past midnight still blocks this morning.
   const window: Interval = {
