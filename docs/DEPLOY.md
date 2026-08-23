@@ -112,6 +112,33 @@ before you need it.
 
 ---
 
+---
+
+## About `vercel.json`
+
+It is deliberately minimal, because Vercel validates it against a strict schema and
+rejects unknown properties — a rejected file fails the deployment in about a second,
+before the build starts, which looks nothing like a build error.
+
+```json
+{
+  "regions": ["sin1"],
+  "crons": [
+    { "path": "/api/cron/reminders", "schedule": "0 3 * * *" },
+    { "path": "/api/cron/close-out",  "schedule": "0 22 * * *" }
+  ]
+}
+```
+
+Cron entries accept **only** `path` and `schedule`. JSON has no comment syntax, so the
+reasoning lives here instead:
+
+- **`0 3 * * *`** is 03:00 UTC = 08:00 Asia/Karachi — the morning digest for tomorrow's
+  appointments. Hobby runs cron once a day and may fire anywhere inside the hour, which is
+  why this is a digest rather than an exact 24-hour reminder.
+- **`0 22 * * *`** is 03:00 Asia/Karachi, safely after the business day has ended.
+- On **Pro**, tighten both to hourly (`0 * * * *`).
+
 ## Costs
 
 | Service | Free tier covers | When you pay |
