@@ -76,14 +76,19 @@ connection before deploying:
 npm run db:deploy
 ```
 
-### Change the admin password
+### Admin password
 
-The seeded password (`ChangeMe123!`) is in the git history and in this repo's README. Before
-anyone real uses this:
+Already rotated off the seeded default. To set a new one at any time:
 
 ```powershell
-npx tsx --env-file=.env scripts/set-password.ts owner@noorwellness.example
+npm run set-password owner@noorwellness.example
 ```
+
+With no password argument it generates one and prints it once — a password typed on a
+command line ends up in shell history.
+
+⚠️ `npm run db:seed` wipes and recreates the users table, resetting every password to the
+seed default. Never run it against a database holding real bookings.
 
 ### Verify cron
 

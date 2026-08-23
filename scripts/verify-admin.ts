@@ -1,4 +1,4 @@
-import { verify } from '@node-rs/argon2'
+import { hash, verify } from '@node-rs/argon2'
 import { db } from '../lib/db.js'
 
 /**
@@ -33,13 +33,17 @@ async function main() {
     'password stored as argon2id (NFR-6)',
     owner!.passwordHash.slice(0, 10),
   )
+
+  // Deliberately NOT asserting a specific password. An earlier version checked the seeded
+  // one and started failing the moment it was rotated — reporting a problem with the code
+  // when the only thing that had happened was correct operational hygiene.
+  const probe = await hash('a-known-probe-password')
+  check(await verify(probe, 'a-known-probe-password'), 'argon2id round-trips a correct password')
+  check(!(await verify(probe, 'the-wrong-password')), 'argon2id rejects an incorrect password')
   check(
-    await verify(owner!.passwordHash, 'ChangeMe123!'),
-    'the seeded password verifies',
-  )
-  check(
-    !(await verify(owner!.passwordHash, 'wrong-password')),
-    'a wrong password is rejected',
+    !(await verify(owner!.passwordHash, 'ChangeMe123!')),
+    'the seeded default password no longer works',
+    'rotated out of use',
   )
 
   const staffUser = await db.user.findFirst({

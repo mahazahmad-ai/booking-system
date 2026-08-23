@@ -40,7 +40,18 @@ Honest about what has *not* been proven:
 fixture can't coexist with seed data. It refuses with a clear message rather than failing
 obscurely.
 
-**Admin:** `/login` · `owner@noorwellness.example` / `ChangeMe123!` (change before deploying)
+**Admin:** `/login` · `owner@noorwellness.example`
+
+The password has been rotated out of the seeded default. To set a new one:
+
+```powershell
+npm run set-password owner@noorwellness.example
+```
+
+With no password argument it generates a strong one and prints it once. Note that
+`npm run db:seed` **wipes and recreates** the users table, so reseeding resets every
+password back to the seed default — fine for demo data, never run it against real
+bookings.
 
 ## Before deploying
 
