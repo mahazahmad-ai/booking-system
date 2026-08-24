@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { ArrowRight, Check, Clock } from 'lucide-react'
 import { Container, Section, Eyebrow } from '@/components/ui/container'
 import { ButtonLink } from '@/components/ui/button'
+import { Hero } from '@/components/hero'
 import { brand, trustPoints, howItWorks } from '@/lib/brand'
 import { getBusiness, listServices } from '@/lib/repositories/catalogue.repo'
 import { formatDuration, formatPrice } from '@/lib/utils'
@@ -10,12 +11,8 @@ import { formatDuration, formatPrice } from '@/lib/utils'
 export const revalidate = 3600
 
 /**
- * Fully static. No client components, so this page ships effectively zero application
- * JavaScript — which is most of how the sub-100kB target in the plan gets met.
- *
- * The treatment list reads from lib/placeholder-data.ts until Phase 3 replaces it with
- * a real query. Component props already match the `Service` model, so that swap touches
- * only the two lines marked below.
+ * No client components, so this page ships effectively zero application JavaScript.
+ * Treatments and prices come from the database; the hero is a server component too.
  */
 export default async function HomePage() {
   const business = await getBusiness()
@@ -28,47 +25,7 @@ export default async function HomePage() {
   return (
     <>
       {/* ── Hero ───────────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden border-b border-line">
-        <div className="texture-grain absolute inset-0 opacity-60" aria-hidden="true" />
-        <div
-          className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent-line to-transparent"
-          aria-hidden="true"
-        />
-
-        <Container className="relative pb-20 pt-16 sm:pb-28 sm:pt-24">
-          <div className="max-w-3xl">
-            <Eyebrow>{brand.city} · Wellness studio</Eyebrow>
-
-            <h1 className="mt-5 font-display text-[2.75rem] leading-[1.05] tracking-tight text-ink sm:text-6xl lg:text-7xl">
-              {brand.tagline}
-            </h1>
-
-            <p className="mt-6 max-w-xl text-lg leading-relaxed text-ink-muted">
-              {brand.description}
-            </p>
-
-            <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <ButtonLink href="/book" size="lg" className="w-full sm:w-auto">
-                Book an appointment
-                <ArrowRight className="size-4" aria-hidden="true" />
-              </ButtonLink>
-              <ButtonLink
-                href="/services"
-                size="lg"
-                variant="secondary"
-                className="w-full sm:w-auto"
-              >
-                See treatments
-              </ButtonLink>
-            </div>
-
-            <p className="mt-6 flex items-center gap-2 text-sm text-ink-subtle">
-              <Clock className="size-4 shrink-0" aria-hidden="true" />
-              Takes about a minute. All times {brand.timezoneLabel}.
-            </p>
-          </div>
-        </Container>
-      </section>
+      <Hero />
 
       {/* ── Why book here ──────────────────────────────────────────────────── */}
       <Section>
